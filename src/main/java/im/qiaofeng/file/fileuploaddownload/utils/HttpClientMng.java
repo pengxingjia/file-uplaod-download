@@ -20,12 +20,12 @@ public class HttpClientMng {
     private static HttpClient client = null;
 
     public static HttpClient getClient() {
-        getTrustedhttpclient();
+        getTrustedHttpClient();
         return client;
     }
 
     @SuppressWarnings("deprecation")
-    private static synchronized void getTrustedhttpclient() {
+    private static synchronized void getTrustedHttpClient() {
         try {
             if (client == null) {
                 HttpClientBuilder b = HttpClientBuilder.create();
