@@ -37,10 +37,28 @@ public class DownloadFileServiceImpl implements DownloadFileService {
             extNameVideoList = new ArrayList<>();
             extNameVideoList.add("mp4");
             extNameVideoList.add("mov");
+            extNameVideoList.add("avi");
+            extNameVideoList.add("rmvb");
+            extNameVideoList.add("rm");
+            extNameVideoList.add("flv");
+            extNameVideoList.add("3gp");
+
         }
         if (extNameAudioList == null){
             extNameAudioList = new ArrayList<>();
             extNameAudioList.add("mp3");
+            extNameAudioList.add("cd");
+            extNameAudioList.add("wave");
+            extNameAudioList.add("aiff");
+            extNameAudioList.add("mpeg");
+            extNameAudioList.add("mpeg-4");
+            extNameAudioList.add("midi");
+            extNameAudioList.add("wma");
+            extNameAudioList.add("amr");
+            extNameAudioList.add("ape");
+            extNameAudioList.add("flac");
+            extNameAudioList.add("aac");
+            extNameAudioList.add("asf");
         }
     }
 
@@ -103,11 +121,11 @@ public class DownloadFileServiceImpl implements DownloadFileService {
         String lowExtUser = extName.toLowerCase();
 
         if (extNameVideoList.contains(lowExtUser)){
-            response.setContentType("video/mp4");
-            response.setHeader("Content-Type", "video/mp4");
+            response.setContentType("video/" + extName);
+            response.setHeader("Content-Type", "video/" + extName);
         }else if (extNameAudioList.contains(lowExtUser)){
-            response.setContentType("audio/mp3");
-            response.setHeader("Content-Type", "audio/mp3");
+            response.setContentType("audio/" + extName);
+            response.setHeader("Content-Type", "audio/" + extName);
         }
     }
 
