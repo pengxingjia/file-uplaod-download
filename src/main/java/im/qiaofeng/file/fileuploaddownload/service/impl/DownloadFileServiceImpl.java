@@ -8,9 +8,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
+import javax.activation.MimetypesFileTypeMap;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -26,52 +25,41 @@ import org.springframework.stereotype.Service;
 @Service
 public class DownloadFileServiceImpl implements DownloadFileService {
 
-    //音视频格式，不区分大小写
-    private static List<String> extNameVideoList;
-    private static List<String> extNameAudioList;
+    //音视频格式
+    private static MimetypesFileTypeMap mimetypesFileTypeMap;
 
-    private static long fileMaxSize = 2147483648L;
+    private static final long FILE_MAX_SIZE = 2147483648L;
 
-    private void initExtNameMap(){
-        if (extNameVideoList == null) {
-            extNameVideoList = new ArrayList<>();
-            extNameVideoList.add("mp4");
-            extNameVideoList.add("mov");
-            extNameVideoList.add("avi");
-            extNameVideoList.add("rmvb");
-            extNameVideoList.add("rm");
-            extNameVideoList.add("flv");
-            extNameVideoList.add("3gp");
 
-        }
-        if (extNameAudioList == null){
-            extNameAudioList = new ArrayList<>();
-            extNameAudioList.add("mp3");
-            extNameAudioList.add("cd");
-            extNameAudioList.add("wave");
-            extNameAudioList.add("aiff");
-            extNameAudioList.add("mpeg");
-            extNameAudioList.add("mpeg-4");
-            extNameAudioList.add("midi");
-            extNameAudioList.add("wma");
-            extNameAudioList.add("amr");
-            extNameAudioList.add("ape");
-            extNameAudioList.add("flac");
-            extNameAudioList.add("aac");
-            extNameAudioList.add("asf");
+    private void initFileSuffixMimeTypeMap() {
+        if (mimetypesFileTypeMap == null) {
+            mimetypesFileTypeMap = new MimetypesFileTypeMap(Thread.currentThread().getContextClassLoader().getResourceAsStream("mime.types"));
         }
     }
+
+    /**
+     * 判断后缀是否是音频/视频类设置响应的响应头
+     *
+     * @param fileName 带后缀的文件名
+     */
+    private void checkExtNameSetHealer(HttpServletResponse response, String fileName) {
+        initFileSuffixMimeTypeMap();
+        String lowFileName = fileName.toLowerCase();
+        String contentMimeType = mimetypesFileTypeMap.getContentType(lowFileName);
+        response.setHeader("Content-Type", contentMimeType);
+    }
+
+
 
     @Override
     public void download(String fid, HttpServletRequest request, HttpServletResponse response) {
         //根据fid查询出文件信息，文件信息包含的文件地址、文件名、文件后缀
         String url = "";
         String originalName = "";
-        String extName = "";
         //构建文件对象
         File file = FileUtil.getFilePath(url);
         try {
-            sendVideo(request, response, file, originalName, extName);
+            sendVideo(request, response, file, originalName);
         } catch (IOException e) {
             log.error("文件下载失败");
             throw new FileException(ErrorCodeConstants.FILE_DOWNLOAD_EXCEPTION);
@@ -79,9 +67,9 @@ public class DownloadFileServiceImpl implements DownloadFileService {
     }
 
     //苹果代表分片下载，其他代表一次性下载文件
-    public void sendVideo(HttpServletRequest request, HttpServletResponse response, File file, String originalName, String extName) throws IOException {
+    private void sendVideo(HttpServletRequest request, HttpServletResponse response, File file, String originalName) throws IOException {
         //判断后缀是否是音频/视频类
-        checkExtNameSetHealer(response, extName);
+        checkExtNameSetHealer(response, originalName);
         response.addHeader("Content-Disposition", "attachment;filename=\"" + new String(originalName.getBytes(StandardCharsets.UTF_8), "iso8859-1") + "\"");
         response.setHeader("ETag", originalName);
         response.setHeader("Last-Modified", new Date().toString());
@@ -90,7 +78,7 @@ public class DownloadFileServiceImpl implements DownloadFileService {
         //设置文件为只读模式
         RandomAccessFile randomFile = new RandomAccessFile(file, "r");
         long contentLength = randomFile.length();
-        if (contentLength > fileMaxSize){
+        if (contentLength > FILE_MAX_SIZE){
             log.error("文件太大，最大支持2g");
             throw new RuntimeException("文件太大");
         }
@@ -110,25 +98,6 @@ public class DownloadFileServiceImpl implements DownloadFileService {
             io.getStackTrace();
         }
     }
-
-    /**
-     * 判断后缀是否是音频/视频类设置响应的响应头
-     *
-     * @param extName 后缀名
-     */
-    private void checkExtNameSetHealer(HttpServletResponse response, String extName) {
-        initExtNameMap();
-        String lowExtUser = extName.toLowerCase();
-
-        if (extNameVideoList.contains(lowExtUser)){
-            response.setContentType("video/" + extName);
-            response.setHeader("Content-Type", "video/" + extName);
-        }else if (extNameAudioList.contains(lowExtUser)){
-            response.setContentType("audio/" + extName);
-            response.setHeader("Content-Type", "audio/" + extName);
-        }
-    }
-
 
     /**
      * 一次性输出所有文件流
@@ -161,8 +130,7 @@ public class DownloadFileServiceImpl implements DownloadFileService {
     private void pieceDownFileInfo(String range, HttpServletResponse response, RandomAccessFile randomFile) throws IOException {
         long contentLength = randomFile.length();
 
-        int start = 0;
-        int end = 0;
+        int start , end;
         //是分片下载 safari浏览器（后面都叫做苹果）预请求传的是bytes=0-1， 其他（android，后面都叫做其他）格式为bytes=0-
         String[] values = range.split("=")[1].split("-");
         start = Integer.parseInt(values[0]);
